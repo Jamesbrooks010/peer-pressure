@@ -54,5 +54,16 @@ create policy "Prototype entries can be created"
   on public.entries for insert
   with check (true);
 
-alter publication supabase_realtime add table public.markets;
-alter publication supabase_realtime add table public.entries;
+do $$
+begin
+  alter publication supabase_realtime add table public.markets;
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.entries;
+exception
+  when duplicate_object then null;
+end $$;

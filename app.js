@@ -396,19 +396,16 @@ function render() {
 function renderStats() {
   const activeCount = document.querySelector("#activeCount");
   const followedCount = document.querySelector("#followedCount");
-  const totalPool = document.querySelector("#totalPool");
   const settledCount = document.querySelector("#settledCount");
-  if (!activeCount || !followedCount || !totalPool || !settledCount) return;
+  if (!activeCount || !followedCount || !settledCount) return;
 
   const visible = markets.filter(hasInviteAccess);
   const active = visible.filter((market) => market.status === "OPEN").length;
   const followed = visible.filter(isFollowing).length;
-  const pool = visible.reduce((sum, market) => sum + getPools(market).gross, 0);
   const settled = visible.filter((market) => market.status === "SETTLED").length;
 
   activeCount.textContent = active;
   followedCount.textContent = followed;
-  totalPool.textContent = money.format(pool);
   settledCount.textContent = settled;
 }
 
@@ -428,7 +425,6 @@ function renderMarkets() {
 
   visibleMarkets.forEach((market) => {
     const card = template.content.firstElementChild.cloneNode(true);
-    const pools = getPools(market);
     const odds = getOdds(market);
     const statusPill = card.querySelector(".status-pill");
     const visibilityPill = card.querySelector(".visibility-pill");
@@ -436,15 +432,14 @@ function renderMarkets() {
     const entryForm = card.querySelector(".entry-form");
 
     card.querySelector("h3").textContent = market.question;
-    card.querySelector(".umpire").textContent = market.umpire;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
     card.querySelector(".deadline").textContent = formatDate(market.deadline);
     card.querySelector(".terms").textContent = market.terms;
     renderInviteRead(card, market);
-    card.querySelector(".yes-pool").textContent = money.format(pools.yes);
-    card.querySelector(".no-pool").textContent = money.format(pools.no);
-    card.querySelector(".yes-odds").textContent = formatOdds(odds.yesOdds, odds.yesShare);
-    card.querySelector(".no-odds").textContent = formatOdds(odds.noOdds, odds.noShare);
+    card.querySelector(".yes-pool").textContent = formatProbability(odds.yesShare);
+    card.querySelector(".no-pool").textContent = formatProbability(odds.noShare);
+    card.querySelector(".yes-odds").textContent = "implied chance for";
+    card.querySelector(".no-odds").textContent = "implied chance against";
     card.querySelector(".payout-read").textContent = payoutRead(market);
 
     statusPill.textContent = market.outcome ? `${market.outcome} resolved` : market.status;
@@ -536,8 +531,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("en-AU", {
     day: "numeric",
     month: "short",
-    hour: "numeric",
-    minute: "2-digit"
+    year: "numeric"
   }).format(new Date(value));
 }
 
@@ -550,6 +544,11 @@ function toLocalInputDate(value) {
 function formatOdds(decimalOdds, share) {
   if (!decimalOdds) return "No pool yet";
   return `${decimalOdds.toFixed(2)}x payout | ${(share * 100).toFixed(0)}% of pool`;
+}
+
+function formatProbability(share) {
+  if (!Number.isFinite(share) || share <= 0) return "No line";
+  return `${Math.round(share * 100)}%`;
 }
 
 function renderInviteRead(card, market) {
@@ -575,10 +574,11 @@ function createInviteCode() {
 }
 
 function payoutRead(market) {
-  const pools = getPools(market);
+  const odds = getOdds(market);
   if (market.outcome === "VOID") return "Void: all stakes return.";
-  if (market.outcome) return `${market.outcome} wins from a ${money.format(pools.net)} net pot.`;
-  return `${money.format(pools.net)} net pot.`;
+  if (market.outcome) return `${market.outcome} resolved.`;
+  if (!odds.yesShare && !odds.noShare) return "Market line will appear once friends join.";
+  return `Line: YES ${formatProbability(odds.yesShare)} / NO ${formatProbability(odds.noShare)} implied.`;
 }
 
 function setConnection(message, state) {

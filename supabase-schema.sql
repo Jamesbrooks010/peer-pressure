@@ -9,11 +9,19 @@ create table if not exists public.markets (
   min_stake numeric not null default 5 check (min_stake > 0),
   platform_fee numeric not null default 2 check (platform_fee >= 0),
   odds_rake numeric not null default 3 check (odds_rake >= 0),
+  visibility text not null default 'PUBLIC' check (visibility in ('PUBLIC', 'INVITE_ONLY')),
+  invite_code text not null default '',
   terms text not null default '',
   status text not null default 'OPEN' check (status in ('OPEN', 'SETTLED')),
   outcome text not null default '' check (outcome in ('', 'YES', 'NO', 'VOID')),
   created_at timestamptz not null default now()
 );
+
+alter table public.markets
+  add column if not exists visibility text not null default 'PUBLIC';
+
+alter table public.markets
+  add column if not exists invite_code text not null default '';
 
 create table if not exists public.entries (
   id uuid primary key default gen_random_uuid(),

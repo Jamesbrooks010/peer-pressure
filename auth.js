@@ -4,10 +4,7 @@ const authClient = (() => {
   return window.supabase.createClient(config.url, config.anonKey);
 })();
 
-const pendingSignupKey = "peerPressurePendingSignup";
-
 const signupForm = document.querySelector("#signupForm");
-const verifyForm = document.querySelector("#verifyForm");
 const signinForm = document.querySelector("#signinForm");
 const statusLine = document.querySelector("#connectionStatus");
 
@@ -18,14 +15,14 @@ signupForm && signupForm.addEventListener("submit", async (event) => {
   if (!authClient) return;
 
   const username = valueOf("signupUsername");
-  const phone = normalisePhone(valueOf("signupPhone"));
+  const email = valueOf("signupEmail").toLowerCase();
   const password = valueOf("signupPassword");
 
-  const { error } = await authClient.auth.signUp({
-    phone,
+  const { data, error } = await authClient.auth.signUp({
+    email,
     password,
     options: {
-      channel: "sms",
+      emailRedirectTo: `${window.location.origin}${window.location.pathname.replace("signup.html", "auth.html")}`,
       data: { username }
     }
   });
@@ -35,66 +32,39 @@ signupForm && signupForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  localStorage.setItem(pendingSignupKey, JSON.stringify({ username, phone }));
-  document.querySelector("#verifyPhone").value = phone;
-  setStatus("Code sent. Enter the SMS code to finish setup.", "live");
-});
-
-verifyForm && verifyForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!authClient) return;
-
-  const phone = normalisePhone(valueOf("verifyPhone"));
-  const token = valueOf("verifyCode");
-  const pending = readPendingSignup(phone);
-
-  const { data, error } = await authClient.auth.verifyOtp({
-    phone,
-    token,
-    type: "sms"
-  });
-
-  if (error) {
-    setStatus(error.message, "error");
-    return;
-  }
-
   const user = data && data.user;
-  if (user && pending.username) {
-    await saveProfile(user.id, pending.username, phone);
-  }
+  if (user) await saveProfile(user.id, username, email);
 
-  localStorage.setItem("peerPressureCurrentUser", pending.username || phone);
-  localStorage.removeItem(pendingSignupKey);
-  setStatus("Account verified. Taking you back to Peer Pressure...", "live");
-  window.location.href = "index.html";
+  localStorage.setItem("peerPressureCurrentUser", username);
+  setStatus("Account created. Check your email to verify, then sign in.", "live");
+  signupForm.reset();
 });
 
 signinForm && signinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!authClient) return;
 
-  const phone = normalisePhone(valueOf("signinPhone"));
+  const email = valueOf("signinEmail").toLowerCase();
   const password = valueOf("signinPassword");
 
-  const { data, error } = await authClient.auth.signInWithPassword({ phone, password });
+  const { data, error } = await authClient.auth.signInWithPassword({ email, password });
   if (error) {
     setStatus(error.message, "error");
     return;
   }
 
   const user = data && data.user;
-  const username = user ? await loadUsername(user) : phone;
+  const username = user ? await loadUsername(user) : email;
   localStorage.setItem("peerPressureCurrentUser", username);
   setStatus("Signed in. Taking you back to Peer Pressure...", "live");
   window.location.href = "index.html";
 });
 
-async function saveProfile(id, username, phone) {
+async function saveProfile(id, username, email) {
   const { error } = await authClient.from("profiles").upsert({
     id,
     username,
-    phone
+    email
   });
 
   if (error) setStatus(error.message, "error");
@@ -107,20 +77,7 @@ async function loadUsername(user) {
     .eq("id", user.id)
     .maybeSingle();
 
-  return (data && data.username) || (user.user_metadata && user.user_metadata.username) || user.phone || "Friend";
-}
-
-function readPendingSignup(phone) {
-  try {
-    const pending = JSON.parse(localStorage.getItem(pendingSignupKey) || "{}");
-    return pending.phone === phone ? pending : { phone };
-  } catch {
-    return { phone };
-  }
-}
-
-function normalisePhone(phone) {
-  return phone.replace(/\s+/g, "");
+  return (data && data.username) || (user.user_metadata && user.user_metadata.username) || user.email || "Friend";
 }
 
 function valueOf(id) {

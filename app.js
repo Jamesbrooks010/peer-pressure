@@ -59,20 +59,13 @@ const money = new Intl.NumberFormat("en-AU", {
   maximumFractionDigits: 0
 });
 
-const currentUserInput = document.querySelector("#currentUser");
 const marketForm = document.querySelector("#marketForm");
 const marketList = document.querySelector("#marketList");
 const template = document.querySelector("#marketCardTemplate");
 const connectionStatus = document.querySelector("#connectionStatus");
 const inviteForm = document.querySelector("#inviteForm");
 
-if (currentUserInput) {
-  currentUserInput.value = localStorage.getItem(USER_KEY) || "You";
-  currentUserInput.addEventListener("input", () => {
-    localStorage.setItem(USER_KEY, currentUserInput.value.trim() || "You");
-    render();
-  });
-}
+window.addEventListener("peerpressure:userchange", render);
 
 if (marketForm) {
   marketForm.addEventListener("submit", async (event) => {
@@ -334,6 +327,10 @@ function toggleFollow(market) {
   localStorage.setItem(FOLLOW_KEY, JSON.stringify([...followed]));
 }
 
+function currentDisplayName() {
+  return localStorage.getItem(USER_KEY) || "You";
+}
+
 function valueOf(id) {
   const field = document.querySelector(`#${id}`);
   return field ? field.value.trim() : "";
@@ -456,7 +453,7 @@ function renderMarkets() {
 
     const personInput = card.querySelector(".person-input");
     const amountInput = card.querySelector(".amount-input");
-    personInput.value = currentUserInput ? currentUserInput.value : "You";
+    personInput.value = currentDisplayName();
     amountInput.min = market.minStake;
     amountInput.placeholder = `$${market.minStake}+`;
 
@@ -468,7 +465,7 @@ function renderMarkets() {
 
       const entry = {
         id: crypto.randomUUID(),
-        person: personInput.value.trim() || (currentUserInput && currentUserInput.value) || "Friend",
+        person: personInput.value.trim() || currentDisplayName() || "Friend",
         side: card.querySelector(".side-select").value,
         amount
       };
@@ -539,11 +536,6 @@ function toLocalInputDate(value) {
   const date = new Date(value);
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
-}
-
-function formatOdds(decimalOdds, share) {
-  if (!decimalOdds) return "No pool yet";
-  return `${decimalOdds.toFixed(2)}x payout | ${(share * 100).toFixed(0)}% of pool`;
 }
 
 function formatProbability(share) {

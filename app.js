@@ -3,6 +3,7 @@ const USER_KEY = "peerPressureCurrentUser";
 const FOLLOW_KEY = "peerPressureFollowedMarkets";
 const INVITE_KEY = "peerPressureInviteCodes";
 const HIDDEN_PLATFORM_FEE = 2;
+const HIDDEN_ODDS_RAKE = 3;
 
 const defaultMarkets = [
   {
@@ -13,7 +14,7 @@ const defaultMarkets = [
     umpire: "Alex",
     minStake: 5,
     platformFee: HIDDEN_PLATFORM_FEE,
-    oddsRake: 3,
+    oddsRake: HIDDEN_ODDS_RAKE,
     visibility: "PUBLIC",
     inviteCode: "",
     terms: "Counts only if the call is received before midnight. Missed calls count. Texts do not.",
@@ -33,7 +34,7 @@ const defaultMarkets = [
     umpire: "Mia",
     minStake: 5,
     platformFee: HIDDEN_PLATFORM_FEE,
-    oddsRake: 3,
+    oddsRake: HIDDEN_ODDS_RAKE,
     visibility: "PUBLIC",
     inviteCode: "",
     terms: "Dinner counts if at least four people attend and food is ordered by 9pm.",
@@ -87,7 +88,7 @@ marketForm.addEventListener("submit", async (event) => {
     umpire: valueOf("umpire"),
     minStake: numberOf("minStake"),
     platformFee: HIDDEN_PLATFORM_FEE,
-    oddsRake: numberOf("oddsRake"),
+    oddsRake: HIDDEN_ODDS_RAKE,
     visibility,
     inviteCode: visibility === "INVITE_ONLY" ? createInviteCode() : "",
     terms: valueOf("terms") || "No extra terms added.",
@@ -107,7 +108,6 @@ marketForm.addEventListener("submit", async (event) => {
   marketForm.reset();
   document.querySelector("input[name='visibility'][value='PUBLIC']").checked = true;
   document.querySelector("#minStake").value = 5;
-  document.querySelector("#oddsRake").value = 3;
   showMarketView();
 });
 
@@ -430,7 +430,6 @@ function renderMarkets() {
     card.querySelector(".umpire").textContent = market.umpire;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
     card.querySelector(".deadline").textContent = formatDate(market.deadline);
-    card.querySelector(".fee").textContent = `${market.oddsRake}%`;
     card.querySelector(".terms").textContent = market.terms;
     renderInviteRead(card, market);
     card.querySelector(".yes-pool").textContent = money.format(pools.yes);
@@ -584,7 +583,7 @@ function payoutRead(market) {
   const pools = getPools(market);
   if (market.outcome === "VOID") return "Void: all stakes return.";
   if (market.outcome) return `${market.outcome} wins from a ${money.format(pools.net)} net pot.`;
-  return `${money.format(pools.net)} net pot after fees and rake.`;
+  return `${money.format(pools.net)} net pot.`;
 }
 
 function setConnection(message, state) {

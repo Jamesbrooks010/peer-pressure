@@ -14,9 +14,12 @@
           <h1>Private bets, clear terms, clean payouts.</h1>
           <p id="connectionStatus" class="connection-status">Demo mode: bets are saved on this device.</p>
         </div>
-        <div class="identity-card">
-          <label for="currentUser">You are</label>
-          <input id="currentUser" type="text" autocomplete="name">
+        <div class="top-actions">
+          <div class="identity-card">
+            <label for="currentUser">You are</label>
+            <input id="currentUser" type="text" autocomplete="name">
+          </div>
+          <button id="showCreateButton" class="primary-button" type="button">Create Bet</button>
         </div>
       </section>
 
@@ -39,14 +42,29 @@
         </article>
       </section>
 
-      <section class="workspace">
+      <section id="createView" class="create-view" hidden>
         <aside class="panel create-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Create</p>
-            <h2>New Bet</h2>
+            <div>
+              <p class="eyebrow">Create</p>
+              <h2>New Bet</h2>
+            </div>
+            <button id="cancelCreateButton" class="ghost-button compact-button" type="button">Back</button>
           </div>
 
           <form id="marketForm" class="stack">
+            <fieldset class="segmented-field">
+              <legend>Visibility</legend>
+              <label>
+                <input type="radio" name="visibility" value="PUBLIC" checked>
+                Public
+              </label>
+              <label>
+                <input type="radio" name="visibility" value="INVITE_ONLY">
+                Invite only
+              </label>
+            </fieldset>
+
             <label>
               Question
               <textarea id="question" required rows="3" placeholder="Will Sam call us today?"></textarea>
@@ -76,10 +94,6 @@
 
             <div class="split">
               <label>
-                Platform fee
-                <input id="platformFee" required type="number" min="0" max="30" step="0.5" value="2">
-              </label>
-              <label>
                 Odds rake
                 <input id="oddsRake" required type="number" min="0" max="30" step="0.5" value="3">
               </label>
@@ -93,8 +107,21 @@
             <button class="primary-button" type="submit">Create Bet</button>
           </form>
         </aside>
+      </section>
 
+      <section id="marketView" class="workspace">
         <section class="market-area">
+          <div class="market-toolbar">
+            <div>
+              <p class="eyebrow">Live Markets</p>
+              <h2>Open Bets</h2>
+            </div>
+            <form id="inviteForm" class="invite-form">
+              <input id="inviteCode" type="text" placeholder="Invite code">
+              <button class="secondary-button" type="submit">Open</button>
+            </form>
+          </div>
+
           <div class="filters" role="tablist" aria-label="Market filters">
             <button class="filter-button active" data-filter="all" type="button">All</button>
             <button class="filter-button" data-filter="followed" type="button">Followed</button>
@@ -110,7 +137,10 @@
     <template id="marketCardTemplate">
       <article class="market-card">
         <div class="card-topline">
-          <span class="status-pill"></span>
+          <div class="pill-row">
+            <span class="status-pill"></span>
+            <span class="visibility-pill"></span>
+          </div>
           <button class="ghost-button follow-button" type="button"></button>
         </div>
 
@@ -130,12 +160,13 @@
             <dd class="deadline"></dd>
           </div>
           <div>
-            <dt>Fee + rake</dt>
+            <dt>Rake</dt>
             <dd class="fee"></dd>
           </div>
         </dl>
 
         <p class="terms"></p>
+        <p class="invite-read"></p>
 
         <div class="odds-row">
           <div class="side-box yes-box">

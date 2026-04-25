@@ -64,52 +64,52 @@ const marketForm = document.querySelector("#marketForm");
 const marketList = document.querySelector("#marketList");
 const template = document.querySelector("#marketCardTemplate");
 const connectionStatus = document.querySelector("#connectionStatus");
-const createView = document.querySelector("#createView");
-const marketView = document.querySelector("#marketView");
-const showCreateButton = document.querySelector("#showCreateButton");
-const cancelCreateButton = document.querySelector("#cancelCreateButton");
 const inviteForm = document.querySelector("#inviteForm");
 
-currentUserInput.value = localStorage.getItem(USER_KEY) || "You";
-currentUserInput.addEventListener("input", () => {
-  localStorage.setItem(USER_KEY, currentUserInput.value.trim() || "You");
-  render();
-});
-
-marketForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const visibility = document.querySelector("input[name='visibility']:checked").value;
-
-  const market = {
-    id: crypto.randomUUID(),
-    question: valueOf("question"),
-    deadline: valueOf("deadline"),
-    cutoff: valueOf("cutoff"),
-    umpire: valueOf("umpire"),
-    minStake: numberOf("minStake"),
-    platformFee: HIDDEN_PLATFORM_FEE,
-    oddsRake: HIDDEN_ODDS_RAKE,
-    visibility,
-    inviteCode: visibility === "INVITE_ONLY" ? createInviteCode() : "",
-    terms: valueOf("terms") || "No extra terms added.",
-    status: "OPEN",
-    outcome: "",
-    entries: []
-  };
-
-  if (isSharedMode) {
-    await createSharedMarket(market);
-  } else {
-    markets.unshift(market);
-    saveLocalMarkets();
+if (currentUserInput) {
+  currentUserInput.value = localStorage.getItem(USER_KEY) || "You";
+  currentUserInput.addEventListener("input", () => {
+    localStorage.setItem(USER_KEY, currentUserInput.value.trim() || "You");
     render();
-  }
+  });
+}
 
-  marketForm.reset();
-  document.querySelector("input[name='visibility'][value='PUBLIC']").checked = true;
-  document.querySelector("#minStake").value = 5;
-  showMarketView();
-});
+if (marketForm) {
+  marketForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const visibility = document.querySelector("input[name='visibility']:checked").value;
+
+    const market = {
+      id: crypto.randomUUID(),
+      question: valueOf("question"),
+      deadline: valueOf("deadline"),
+      cutoff: valueOf("cutoff"),
+      umpire: valueOf("umpire"),
+      minStake: numberOf("minStake"),
+      platformFee: HIDDEN_PLATFORM_FEE,
+      oddsRake: HIDDEN_ODDS_RAKE,
+      visibility,
+      inviteCode: visibility === "INVITE_ONLY" ? createInviteCode() : "",
+      terms: valueOf("terms") || "No extra terms added.",
+      status: "OPEN",
+      outcome: "",
+      entries: []
+    };
+
+    let created = true;
+    if (isSharedMode) {
+      created = await createSharedMarket(market);
+    } else {
+      markets.unshift(market);
+      saveLocalMarkets();
+      render();
+    }
+
+    if (created) {
+      window.location.href = "index.html";
+    }
+  });
+}
 
 document.querySelectorAll(".filter-button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -121,18 +121,17 @@ document.querySelectorAll(".filter-button").forEach((button) => {
   });
 });
 
-showCreateButton.addEventListener("click", showCreateView);
-cancelCreateButton.addEventListener("click", showMarketView);
+if (inviteForm) {
+  inviteForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const code = valueOf("inviteCode").toUpperCase();
+    if (!code) return;
 
-inviteForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const code = valueOf("inviteCode").toUpperCase();
-  if (!code) return;
-
-  saveInviteCode(code);
-  document.querySelector("#inviteCode").value = "";
-  render();
-});
+    saveInviteCode(code);
+    document.querySelector("#inviteCode").value = "";
+    render();
+  });
+}
 
 boot();
 
@@ -193,10 +192,10 @@ async function createSharedMarket(market) {
 
   if (error) {
     setConnection(`Could not create bet: ${error.message}`, "error");
-    return;
+    return false;
   }
 
-  await loadSharedMarkets();
+  return true;
 }
 
 async function createSharedEntry(market, entry) {
@@ -336,11 +335,13 @@ function toggleFollow(market) {
 }
 
 function valueOf(id) {
-  return document.querySelector(`#${id}`).value.trim();
+  const field = document.querySelector(`#${id}`);
+  return field ? field.value.trim() : "";
 }
 
 function numberOf(id) {
-  return Number(document.querySelector(`#${id}`).value || 0);
+  const field = document.querySelector(`#${id}`);
+  return Number((field && field.value) || 0);
 }
 
 function getPools(market) {
@@ -393,19 +394,27 @@ function render() {
 }
 
 function renderStats() {
+  const activeCount = document.querySelector("#activeCount");
+  const followedCount = document.querySelector("#followedCount");
+  const totalPool = document.querySelector("#totalPool");
+  const settledCount = document.querySelector("#settledCount");
+  if (!activeCount || !followedCount || !totalPool || !settledCount) return;
+
   const visible = markets.filter(hasInviteAccess);
   const active = visible.filter((market) => market.status === "OPEN").length;
   const followed = visible.filter(isFollowing).length;
-  const totalPool = visible.reduce((sum, market) => sum + getPools(market).gross, 0);
+  const pool = visible.reduce((sum, market) => sum + getPools(market).gross, 0);
   const settled = visible.filter((market) => market.status === "SETTLED").length;
 
-  document.querySelector("#activeCount").textContent = active;
-  document.querySelector("#followedCount").textContent = followed;
-  document.querySelector("#totalPool").textContent = money.format(totalPool);
-  document.querySelector("#settledCount").textContent = settled;
+  activeCount.textContent = active;
+  followedCount.textContent = followed;
+  totalPool.textContent = money.format(pool);
+  settledCount.textContent = settled;
 }
 
 function renderMarkets() {
+  if (!marketList || !template) return;
+
   marketList.replaceChildren();
   const visibleMarkets = filteredMarkets();
 
@@ -452,7 +461,7 @@ function renderMarkets() {
 
     const personInput = card.querySelector(".person-input");
     const amountInput = card.querySelector(".amount-input");
-    personInput.value = currentUserInput.value;
+    personInput.value = currentUserInput ? currentUserInput.value : "You";
     amountInput.min = market.minStake;
     amountInput.placeholder = `$${market.minStake}+`;
 
@@ -464,7 +473,7 @@ function renderMarkets() {
 
       const entry = {
         id: crypto.randomUUID(),
-        person: personInput.value.trim() || currentUserInput.value || "Friend",
+        person: personInput.value.trim() || (currentUserInput && currentUserInput.value) || "Friend",
         side: card.querySelector(".side-select").value,
         amount
       };
@@ -555,20 +564,6 @@ function renderInviteRead(card, market) {
   inviteRead.textContent = `Invite code: ${market.inviteCode}`;
 }
 
-function showCreateView() {
-  createView.hidden = false;
-  marketView.hidden = true;
-  showCreateButton.hidden = true;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function showMarketView() {
-  createView.hidden = true;
-  marketView.hidden = false;
-  showCreateButton.hidden = false;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
 function createInviteCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -587,6 +582,7 @@ function payoutRead(market) {
 }
 
 function setConnection(message, state) {
+  if (!connectionStatus) return;
   connectionStatus.textContent = message;
   connectionStatus.classList.toggle("live", state === "live");
   connectionStatus.classList.toggle("error", state === "error");

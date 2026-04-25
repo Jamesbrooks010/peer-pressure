@@ -59,5 +59,5 @@ async function loadUsername(user) {
     .eq("id", user.id)
     .maybeSingle();
 
-  return (data && data.username) || metadataName || user.phone || "Friend";
+  return (data && data.username) || metadataName || user.email || "Friend";
 }

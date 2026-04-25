@@ -393,10 +393,11 @@ function render() {
 }
 
 function renderStats() {
-  const active = markets.filter((market) => market.status === "OPEN").length;
-  const followed = markets.filter(isFollowing).length;
-  const totalPool = markets.reduce((sum, market) => sum + getPools(market).gross, 0);
-  const settled = markets.filter((market) => market.status === "SETTLED").length;
+  const visible = markets.filter(hasInviteAccess);
+  const active = visible.filter((market) => market.status === "OPEN").length;
+  const followed = visible.filter(isFollowing).length;
+  const totalPool = visible.reduce((sum, market) => sum + getPools(market).gross, 0);
+  const settled = visible.filter((market) => market.status === "SETTLED").length;
 
   document.querySelector("#activeCount").textContent = active;
   document.querySelector("#followedCount").textContent = followed;

@@ -15,10 +15,12 @@
           <p id="connectionStatus" class="connection-status">Demo mode: bets are saved on this device.</p>
         </div>
         <div class="top-actions">
-          <div class="identity-card">
-            <label for="currentUser">You are</label>
-            <input id="currentUser" type="text" autocomplete="name">
+          <div class="identity-card account-card">
+            <span>Account</span>
+            <strong id="accountName">Guest</strong>
+            <button id="signOutButton" class="tiny-button" type="button" hidden>Sign out</button>
           </div>
+          <a id="authAction" class="ghost-button action-link" href="auth.html">Sign In</a>
           <a class="ghost-button action-link" href="index.html">Back</a>
         </div>
       </section>
@@ -85,6 +87,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+    <script src="account.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

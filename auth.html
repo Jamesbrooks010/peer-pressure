@@ -3,69 +3,23 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Account | Peer Pressure</title>
+    <title>Sign In | Peer Pressure</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="app-shell create-page-shell">
-      <section class="topbar" aria-label="Account header">
+      <section class="topbar" aria-label="Sign in header">
         <div>
           <p class="eyebrow">Peer Pressure</p>
-          <h1>Your account.</h1>
-          <p id="connectionStatus" class="connection-status">Create an account or sign in.</p>
+          <h1>Sign in.</h1>
+          <p id="connectionStatus" class="connection-status">Use your email and password.</p>
         </div>
         <div class="top-actions">
           <a class="ghost-button action-link" href="index.html">Back</a>
         </div>
       </section>
 
-      <section class="auth-grid">
-        <aside class="panel create-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">New Account</p>
-              <h2>Create Account</h2>
-            </div>
-          </div>
-
-          <form id="signupForm" class="stack">
-            <label>
-              Username
-              <input id="signupUsername" required type="text" autocomplete="username" placeholder="james">
-            </label>
-            <label>
-              Mobile number
-              <input id="signupPhone" required type="tel" autocomplete="tel" placeholder="+61400111222">
-            </label>
-            <label>
-              Password
-              <input id="signupPassword" required type="password" autocomplete="new-password" minlength="8">
-            </label>
-            <button class="primary-button" type="submit">Send Code</button>
-          </form>
-        </aside>
-
-        <aside class="panel create-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Verify</p>
-              <h2>SMS Code</h2>
-            </div>
-          </div>
-
-          <form id="verifyForm" class="stack">
-            <label>
-              Mobile number
-              <input id="verifyPhone" required type="tel" autocomplete="tel" placeholder="+61400111222">
-            </label>
-            <label>
-              Code
-              <input id="verifyCode" required type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
-            </label>
-            <button class="primary-button" type="submit">Verify</button>
-          </form>
-        </aside>
-
+      <section class="auth-grid compact-auth-grid">
         <aside class="panel create-panel">
           <div class="panel-heading">
             <div>
@@ -76,14 +30,15 @@
 
           <form id="signinForm" class="stack">
             <label>
-              Mobile number
-              <input id="signinPhone" required type="tel" autocomplete="tel" placeholder="+61400111222">
+              Email
+              <input id="signinEmail" required type="email" autocomplete="email" placeholder="you@example.com">
             </label>
             <label>
               Password
               <input id="signinPassword" required type="password" autocomplete="current-password">
             </label>
             <button class="primary-button" type="submit">Sign In</button>
+            <a class="ghost-button action-link full-action" href="signup.html">Create Account</a>
           </form>
         </aside>
       </section>
@@ -91,7 +46,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="account.js"></script>
     <script src="auth.js"></script>
   </body>
 </html>

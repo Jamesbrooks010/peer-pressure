@@ -559,12 +559,14 @@ function renderInviteRead(card, market) {
 function showCreateView() {
   createView.hidden = false;
   marketView.hidden = true;
+  showCreateButton.hidden = true;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function showMarketView() {
   createView.hidden = true;
   marketView.hidden = false;
+  showCreateButton.hidden = false;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

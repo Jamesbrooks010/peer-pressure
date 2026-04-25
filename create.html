@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create Bet | Peer Pressure</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell create-page-shell">
+      <section class="topbar" aria-label="Create bet header">
+        <div>
+          <p class="eyebrow">Peer Pressure</p>
+          <h1>Create a new bet.</h1>
+          <p id="connectionStatus" class="connection-status">Demo mode: bets are saved on this device.</p>
+        </div>
+        <div class="top-actions">
+          <div class="identity-card">
+            <label for="currentUser">You are</label>
+            <input id="currentUser" type="text" autocomplete="name">
+          </div>
+          <a class="ghost-button action-link" href="index.html">Back</a>
+        </div>
+      </section>
+
+      <section class="create-view">
+        <aside class="panel create-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Create</p>
+              <h2>New Bet</h2>
+            </div>
+          </div>
+
+          <form id="marketForm" class="stack">
+            <fieldset class="segmented-field">
+              <legend>Visibility</legend>
+              <label>
+                <input type="radio" name="visibility" value="PUBLIC" checked>
+                Public
+              </label>
+              <label>
+                <input type="radio" name="visibility" value="INVITE_ONLY">
+                Invite only
+              </label>
+            </fieldset>
+
+            <label>
+              Question
+              <textarea id="question" required rows="3" placeholder="Will Sam call us today?"></textarea>
+            </label>
+
+            <div class="split">
+              <label>
+                Deadline
+                <input id="deadline" required type="datetime-local">
+              </label>
+              <label>
+                Cutoff
+                <input id="cutoff" required type="datetime-local">
+              </label>
+            </div>
+
+            <div class="split">
+              <label>
+                Umpire
+                <input id="umpire" required type="text" placeholder="Alex">
+              </label>
+              <label>
+                Min stake
+                <input id="minStake" required type="number" min="1" step="1" value="5">
+              </label>
+            </div>
+
+            <label>
+              Resolution terms
+              <textarea id="terms" rows="3" placeholder="Counts only if the call is received before midnight. Missed calls count. Texts do not."></textarea>
+            </label>
+
+            <button class="primary-button" type="submit">Create Bet</button>
+          </form>
+        </aside>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

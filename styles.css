@@ -52,6 +52,12 @@ button {
   padding: 8px 0 24px;
 }
 
+.top-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--blue);
@@ -163,10 +169,9 @@ textarea {
   font-weight: 700;
 }
 
-.workspace {
+.workspace,
+.create-view {
   display: grid;
-  grid-template-columns: 360px 1fr;
-  align-items: start;
   gap: 18px;
 }
 
@@ -175,11 +180,15 @@ textarea {
 }
 
 .create-panel {
-  position: sticky;
-  top: 18px;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
   margin-bottom: 18px;
 }
 
@@ -192,6 +201,38 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.segmented-field {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segmented-field legend {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.segmented-field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 12px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.segmented-field input {
+  width: auto;
 }
 
 .primary-button,
@@ -208,6 +249,7 @@ textarea {
 .primary-button {
   background: var(--blue);
   color: #fff;
+  padding: 0 16px;
 }
 
 .secondary-button {
@@ -221,6 +263,28 @@ textarea {
   background: #fff;
   border-color: var(--line);
   color: var(--ink);
+}
+
+.compact-button {
+  padding: 0 14px;
+}
+
+.market-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.market-toolbar h2 {
+  margin-bottom: 0;
+}
+
+.invite-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) auto;
+  gap: 8px;
 }
 
 .filters {
@@ -257,7 +321,14 @@ textarea {
   gap: 12px;
 }
 
-.status-pill {
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-pill,
+.visibility-pill {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -267,6 +338,11 @@ textarea {
   color: var(--green);
   font-size: 0.78rem;
   font-weight: 850;
+}
+
+.visibility-pill {
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .status-pill.settled {
@@ -318,6 +394,17 @@ dd {
 .terms {
   margin-bottom: 16px;
   color: var(--muted);
+}
+
+.invite-read {
+  display: none;
+  margin-bottom: 16px;
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.invite-read.visible {
+  display: block;
 }
 
 .odds-row {
@@ -421,16 +508,15 @@ dd {
 
 @media (max-width: 980px) {
   .topbar,
-  .workspace {
+  .top-actions,
+  .market-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .topbar {
+  .topbar,
+  .top-actions,
+  .market-toolbar {
     display: grid;
-  }
-
-  .create-panel {
-    position: static;
   }
 
   .stats-grid {
@@ -453,10 +539,12 @@ dd {
   }
 
   .split,
+  .segmented-field,
   .stats-grid,
   .odds-row,
   .meta-grid,
   .entry-form,
+  .invite-form,
   .ledger-row {
     grid-template-columns: 1fr;
   }

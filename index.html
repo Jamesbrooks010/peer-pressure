@@ -19,7 +19,7 @@
             <label for="currentUser">You are</label>
             <input id="currentUser" type="text" autocomplete="name">
           </div>
-          <button id="showCreateButton" class="primary-button" type="button">Create Bet</button>
+          <a class="primary-button action-link" href="create.html">Create Bet</a>
         </div>
       </section>
 
@@ -40,66 +40,6 @@
           <span id="settledCount">0</span>
           <p>Settled</p>
         </article>
-      </section>
-
-      <section id="createView" class="create-view" hidden>
-        <aside class="panel create-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Create</p>
-              <h2>New Bet</h2>
-            </div>
-            <button id="cancelCreateButton" class="ghost-button compact-button" type="button">Back</button>
-          </div>
-
-          <form id="marketForm" class="stack">
-            <fieldset class="segmented-field">
-              <legend>Visibility</legend>
-              <label>
-                <input type="radio" name="visibility" value="PUBLIC" checked>
-                Public
-              </label>
-              <label>
-                <input type="radio" name="visibility" value="INVITE_ONLY">
-                Invite only
-              </label>
-            </fieldset>
-
-            <label>
-              Question
-              <textarea id="question" required rows="3" placeholder="Will Sam call us today?"></textarea>
-            </label>
-
-            <div class="split">
-              <label>
-                Deadline
-                <input id="deadline" required type="datetime-local">
-              </label>
-              <label>
-                Cutoff
-                <input id="cutoff" required type="datetime-local">
-              </label>
-            </div>
-
-            <div class="split">
-              <label>
-                Umpire
-                <input id="umpire" required type="text" placeholder="Alex">
-              </label>
-              <label>
-                Min stake
-                <input id="minStake" required type="number" min="1" step="1" value="5">
-              </label>
-            </div>
-
-            <label>
-              Resolution terms
-              <textarea id="terms" rows="3" placeholder="Counts only if the call is received before midnight. Missed calls count. Texts do not."></textarea>
-            </label>
-
-            <button class="primary-button" type="submit">Create Bet</button>
-          </form>
-        </aside>
       </section>
 
       <section id="marketView" class="workspace">

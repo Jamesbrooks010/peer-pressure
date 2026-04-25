@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Peer Pressure</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Dashboard header">
+        <div>
+          <p class="eyebrow">Peer Pressure</p>
+          <h1>Private bets, clear terms, clean payouts.</h1>
+        </div>
+        <div class="identity-card">
+          <label for="currentUser">You are</label>
+          <input id="currentUser" type="text" autocomplete="name">
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="Market summary">
+        <article>
+          <span id="activeCount">0</span>
+          <p>Active</p>
+        </article>
+        <article>
+          <span id="followedCount">0</span>
+          <p>Followed</p>
+        </article>
+        <article>
+          <span id="totalPool">$0</span>
+          <p>Total Pool</p>
+        </article>
+        <article>
+          <span id="settledCount">0</span>
+          <p>Settled</p>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel create-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Create</p>
+            <h2>New Bet</h2>
+          </div>
+
+          <form id="marketForm" class="stack">
+            <label>
+              Question
+              <textarea id="question" required rows="3" placeholder="Will Sam call us today?"></textarea>
+            </label>
+
+            <div class="split">
+              <label>
+                Deadline
+                <input id="deadline" required type="datetime-local">
+              </label>
+              <label>
+                Cutoff
+                <input id="cutoff" required type="datetime-local">
+              </label>
+            </div>
+
+            <div class="split">
+              <label>
+                Umpire
+                <input id="umpire" required type="text" placeholder="Alex">
+              </label>
+              <label>
+                Min stake
+                <input id="minStake" required type="number" min="1" step="1" value="5">
+              </label>
+            </div>
+
+            <div class="split">
+              <label>
+                Platform fee
+                <input id="platformFee" required type="number" min="0" max="30" step="0.5" value="2">
+              </label>
+              <label>
+                Odds rake
+                <input id="oddsRake" required type="number" min="0" max="30" step="0.5" value="3">
+              </label>
+            </div>
+
+            <label>
+              Resolution terms
+              <textarea id="terms" rows="3" placeholder="Counts only if the call is received before midnight. Missed calls count. Texts do not."></textarea>
+            </label>
+
+            <button class="primary-button" type="submit">Create Bet</button>
+          </form>
+        </aside>
+
+        <section class="market-area">
+          <div class="filters" role="tablist" aria-label="Market filters">
+            <button class="filter-button active" data-filter="all" type="button">All</button>
+            <button class="filter-button" data-filter="followed" type="button">Followed</button>
+            <button class="filter-button" data-filter="open" type="button">Open</button>
+            <button class="filter-button" data-filter="settled" type="button">Settled</button>
+          </div>
+
+          <div id="marketList" class="market-list" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="marketCardTemplate">
+      <article class="market-card">
+        <div class="card-topline">
+          <span class="status-pill"></span>
+          <button class="ghost-button follow-button" type="button"></button>
+        </div>
+
+        <h3></h3>
+
+        <dl class="meta-grid">
+          <div>
+            <dt>Umpire</dt>
+            <dd class="umpire"></dd>
+          </div>
+          <div>
+            <dt>Cutoff</dt>
+            <dd class="cutoff"></dd>
+          </div>
+          <div>
+            <dt>Deadline</dt>
+            <dd class="deadline"></dd>
+          </div>
+          <div>
+            <dt>Fee + rake</dt>
+            <dd class="fee"></dd>
+          </div>
+        </dl>
+
+        <p class="terms"></p>
+
+        <div class="odds-row">
+          <div class="side-box yes-box">
+            <span>YES</span>
+            <strong class="yes-pool"></strong>
+            <small class="yes-odds"></small>
+          </div>
+          <div class="side-box no-box">
+            <span>NO</span>
+            <strong class="no-pool"></strong>
+            <small class="no-odds"></small>
+          </div>
+        </div>
+
+        <form class="entry-form">
+          <input class="person-input" type="text" placeholder="Name" required>
+          <select class="side-select" required>
+            <option value="YES">YES</option>
+            <option value="NO">NO</option>
+          </select>
+          <input class="amount-input" type="number" min="1" step="1" placeholder="$" required>
+          <button class="secondary-button" type="submit">Join</button>
+        </form>
+
+        <div class="resolve-row">
+          <span class="payout-read"></span>
+          <div class="resolve-actions">
+            <button class="tiny-button" data-outcome="YES" type="button">YES wins</button>
+            <button class="tiny-button" data-outcome="NO" type="button">NO wins</button>
+            <button class="tiny-button" data-outcome="VOID" type="button">Void</button>
+          </div>
+        </div>
+
+        <details class="ledger">
+          <summary>Entries and payouts</summary>
+          <div class="ledger-body"></div>
+        </details>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

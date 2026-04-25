@@ -127,6 +127,26 @@ h3 {
   padding: 14px;
 }
 
+.account-card {
+  display: grid;
+  gap: 5px;
+}
+
+.account-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.account-card strong {
+  font-size: 1rem;
+}
+
+.account-card .tiny-button {
+  justify-self: start;
+  margin-top: 4px;
+}
+
 .identity-card label,
 .stack label {
   display: grid;
@@ -149,6 +169,13 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
 }
 
 .stats-grid {
@@ -188,6 +215,11 @@ textarea {
 .create-panel {
   max-width: 760px;
   margin: 0 auto;
+}
+
+.auth-grid .create-panel {
+  width: 100%;
+  max-width: none;
 }
 
 .panel-heading {
@@ -539,8 +571,9 @@ dd {
     display: grid;
   }
 
+  .auth-grid,
   .stats-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 
@@ -556,7 +589,6 @@ dd {
 
   .split,
   .segmented-field,
-  .stats-grid,
   .odds-row,
   .meta-grid,
   .entry-form,

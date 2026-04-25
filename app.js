@@ -1,5 +1,6 @@
 const STORAGE_KEY = "peerPressurePrototype";
 const USER_KEY = "peerPressureCurrentUser";
+const FOLLOW_KEY = "peerPressureFollowedMarkets";
 
 const defaultMarkets = [
   {
@@ -14,7 +15,6 @@ const defaultMarkets = [
     terms: "Counts only if the call is received before midnight. Missed calls count. Texts do not.",
     status: "OPEN",
     outcome: "",
-    followed: true,
     entries: [
       { id: crypto.randomUUID(), person: "You", side: "YES", amount: 10 },
       { id: crypto.randomUUID(), person: "Jordan", side: "NO", amount: 10 },
@@ -33,7 +33,6 @@ const defaultMarkets = [
     terms: "Dinner counts if at least four people attend and food is ordered by 9pm.",
     status: "OPEN",
     outcome: "",
-    followed: false,
     entries: [
       { id: crypto.randomUUID(), person: "You", side: "NO", amount: 20 },
       { id: crypto.randomUUID(), person: "Mia", side: "YES", amount: 15 }
@@ -41,8 +40,11 @@ const defaultMarkets = [
   }
 ];
 
-let markets = loadMarkets();
+let markets = [];
 let activeFilter = "all";
+let dbClient = null;
+let realtimeChannel = null;
+let isSharedMode = false;
 
 const money = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -54,6 +56,7 @@ const currentUserInput = document.querySelector("#currentUser");
 const marketForm = document.querySelector("#marketForm");
 const marketList = document.querySelector("#marketList");
 const template = document.querySelector("#marketCardTemplate");
+const connectionStatus = document.querySelector("#connectionStatus");
 
 currentUserInput.value = localStorage.getItem(USER_KEY) || "You";
 currentUserInput.addEventListener("input", () => {
@@ -61,7 +64,7 @@ currentUserInput.addEventListener("input", () => {
   render();
 });
 
-marketForm.addEventListener("submit", (event) => {
+marketForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const market = {
@@ -76,17 +79,21 @@ marketForm.addEventListener("submit", (event) => {
     terms: valueOf("terms") || "No extra terms added.",
     status: "OPEN",
     outcome: "",
-    followed: true,
     entries: []
   };
 
-  markets.unshift(market);
-  saveMarkets();
+  if (isSharedMode) {
+    await createSharedMarket(market);
+  } else {
+    markets.unshift(market);
+    saveLocalMarkets();
+    render();
+  }
+
   marketForm.reset();
   document.querySelector("#minStake").value = 5;
   document.querySelector("#platformFee").value = 2;
   document.querySelector("#oddsRake").value = 3;
-  render();
 });
 
 document.querySelectorAll(".filter-button").forEach((button) => {
@@ -99,7 +106,139 @@ document.querySelectorAll(".filter-button").forEach((button) => {
   });
 });
 
-function loadMarkets() {
+boot();
+
+async function boot() {
+  dbClient = createDatabaseClient();
+  isSharedMode = Boolean(dbClient);
+
+  if (isSharedMode) {
+    setConnection("Connecting to shared markets...", "live");
+    await loadSharedMarkets();
+    subscribeToSharedChanges();
+  } else {
+    markets = loadLocalMarkets();
+    setConnection("Demo mode: bets are saved on this device.", "");
+    render();
+  }
+}
+
+function createDatabaseClient() {
+  const config = window.PEER_PRESSURE_SUPABASE || {};
+  const hasConfig = config.url && config.anonKey;
+  const hasLibrary = window.supabase && window.supabase.createClient;
+
+  if (!hasConfig || !hasLibrary) return null;
+  return window.supabase.createClient(config.url, config.anonKey);
+}
+
+async function loadSharedMarkets() {
+  const { data, error } = await dbClient
+    .from("markets")
+    .select("*, entries(*)")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    setConnection(`Supabase error: ${error.message}`, "error");
+    markets = loadLocalMarkets();
+    isSharedMode = false;
+  } else {
+    markets = data.map(fromDatabaseMarket);
+    setConnection("Shared mode: markets sync through Supabase.", "live");
+  }
+
+  render();
+}
+
+function subscribeToSharedChanges() {
+  if (realtimeChannel) dbClient.removeChannel(realtimeChannel);
+
+  realtimeChannel = dbClient
+    .channel("peer-pressure-shared-markets")
+    .on("postgres_changes", { event: "*", schema: "public", table: "markets" }, loadSharedMarkets)
+    .on("postgres_changes", { event: "*", schema: "public", table: "entries" }, loadSharedMarkets)
+    .subscribe();
+}
+
+async function createSharedMarket(market) {
+  const { error } = await dbClient.from("markets").insert(toDatabaseMarket(market));
+
+  if (error) {
+    setConnection(`Could not create bet: ${error.message}`, "error");
+    return;
+  }
+
+  await loadSharedMarkets();
+}
+
+async function createSharedEntry(market, entry) {
+  const { error } = await dbClient.from("entries").insert({
+    market_id: market.id,
+    person: entry.person,
+    side: entry.side,
+    amount: entry.amount
+  });
+
+  if (error) {
+    setConnection(`Could not join bet: ${error.message}`, "error");
+    return;
+  }
+
+  await loadSharedMarkets();
+}
+
+async function resolveSharedMarket(market, outcome) {
+  const { error } = await dbClient
+    .from("markets")
+    .update({ status: "SETTLED", outcome })
+    .eq("id", market.id);
+
+  if (error) {
+    setConnection(`Could not resolve bet: ${error.message}`, "error");
+    return;
+  }
+
+  await loadSharedMarkets();
+}
+
+function fromDatabaseMarket(row) {
+  return {
+    id: row.id,
+    question: row.question,
+    deadline: toLocalInputDate(row.deadline),
+    cutoff: toLocalInputDate(row.cutoff),
+    umpire: row.umpire,
+    minStake: Number(row.min_stake),
+    platformFee: Number(row.platform_fee),
+    oddsRake: Number(row.odds_rake),
+    terms: row.terms,
+    status: row.status,
+    outcome: row.outcome,
+    entries: (row.entries || []).map((entry) => ({
+      id: entry.id,
+      person: entry.person,
+      side: entry.side,
+      amount: Number(entry.amount)
+    }))
+  };
+}
+
+function toDatabaseMarket(market) {
+  return {
+    question: market.question,
+    deadline: new Date(market.deadline).toISOString(),
+    cutoff: new Date(market.cutoff).toISOString(),
+    umpire: market.umpire,
+    min_stake: market.minStake,
+    platform_fee: market.platformFee,
+    odds_rake: market.oddsRake,
+    terms: market.terms,
+    status: market.status,
+    outcome: market.outcome
+  };
+}
+
+function loadLocalMarkets() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return defaultMarkets;
 
@@ -111,8 +250,34 @@ function loadMarkets() {
   }
 }
 
-function saveMarkets() {
+function saveLocalMarkets() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(markets));
+}
+
+function loadFollowedMarketIds() {
+  const raw = localStorage.getItem(FOLLOW_KEY);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function isFollowing(market) {
+  return loadFollowedMarketIds().includes(market.id);
+}
+
+function toggleFollow(market) {
+  const followed = new Set(loadFollowedMarketIds());
+  if (followed.has(market.id)) {
+    followed.delete(market.id);
+  } else {
+    followed.add(market.id);
+  }
+  localStorage.setItem(FOLLOW_KEY, JSON.stringify([...followed]));
 }
 
 function valueOf(id) {
@@ -159,7 +324,7 @@ function getPayout(market, entry) {
 
 function filteredMarkets() {
   return markets.filter((market) => {
-    if (activeFilter === "followed") return market.followed;
+    if (activeFilter === "followed") return isFollowing(market);
     if (activeFilter === "open") return market.status === "OPEN";
     if (activeFilter === "settled") return market.status === "SETTLED";
     return true;
@@ -173,7 +338,7 @@ function render() {
 
 function renderStats() {
   const active = markets.filter((market) => market.status === "OPEN").length;
-  const followed = markets.filter((market) => market.followed).length;
+  const followed = markets.filter(isFollowing).length;
   const totalPool = markets.reduce((sum, market) => sum + getPools(market).gross, 0);
   const settled = markets.filter((market) => market.status === "SETTLED").length;
 
@@ -219,11 +384,10 @@ function renderMarkets() {
     statusPill.classList.toggle("void", market.outcome === "VOID");
     statusPill.classList.toggle("settled", market.status === "SETTLED" && market.outcome !== "VOID");
 
-    followButton.textContent = market.followed ? "Following" : "Follow";
-    followButton.classList.toggle("following", market.followed);
+    followButton.textContent = isFollowing(market) ? "Following" : "Follow";
+    followButton.classList.toggle("following", isFollowing(market));
     followButton.addEventListener("click", () => {
-      market.followed = !market.followed;
-      saveMarkets();
+      toggleFollow(market);
       render();
     });
 
@@ -234,28 +398,38 @@ function renderMarkets() {
     amountInput.placeholder = `$${market.minStake}+`;
 
     entryForm.hidden = market.status !== "OPEN";
-    entryForm.addEventListener("submit", (event) => {
+    entryForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const amount = Number(amountInput.value);
       if (amount < market.minStake) return;
 
-      market.entries.push({
+      const entry = {
         id: crypto.randomUUID(),
         person: personInput.value.trim() || currentUserInput.value || "Friend",
         side: card.querySelector(".side-select").value,
         amount
-      });
-      saveMarkets();
-      render();
+      };
+
+      if (isSharedMode) {
+        await createSharedEntry(market, entry);
+      } else {
+        market.entries.push(entry);
+        saveLocalMarkets();
+        render();
+      }
     });
 
     card.querySelectorAll("[data-outcome]").forEach((button) => {
       button.disabled = market.status !== "OPEN";
-      button.addEventListener("click", () => {
-        market.status = "SETTLED";
-        market.outcome = button.dataset.outcome;
-        saveMarkets();
-        render();
+      button.addEventListener("click", async () => {
+        if (isSharedMode) {
+          await resolveSharedMarket(market, button.dataset.outcome);
+        } else {
+          market.status = "SETTLED";
+          market.outcome = button.dataset.outcome;
+          saveLocalMarkets();
+          render();
+        }
       });
     });
 
@@ -299,6 +473,12 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+function toLocalInputDate(value) {
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
 function formatOdds(decimalOdds, share) {
   if (!decimalOdds) return "No pool yet";
   return `${decimalOdds.toFixed(2)}x payout | ${(share * 100).toFixed(0)}% of pool`;
@@ -309,6 +489,12 @@ function payoutRead(market) {
   if (market.outcome === "VOID") return "Void: all stakes return.";
   if (market.outcome) return `${market.outcome} wins from a ${money.format(pools.net)} net pot.`;
   return `${money.format(pools.net)} net pot after fees and rake.`;
+}
+
+function setConnection(message, state) {
+  connectionStatus.textContent = message;
+  connectionStatus.classList.toggle("live", state === "live");
+  connectionStatus.classList.toggle("error", state === "error");
 }
 
 function escapeHtml(value) {
@@ -322,5 +508,3 @@ function escapeHtml(value) {
     }[character];
   });
 }
-
-render();

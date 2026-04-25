@@ -178,6 +178,15 @@ textarea {
   align-items: start;
 }
 
+.compact-auth-grid {
+  grid-template-columns: minmax(0, 440px);
+  justify-content: center;
+}
+
+.full-action {
+  width: 100%;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

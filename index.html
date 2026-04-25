@@ -92,13 +92,6 @@
               </label>
             </div>
 
-            <div class="split">
-              <label>
-                Odds rake
-                <input id="oddsRake" required type="number" min="0" max="30" step="0.5" value="3">
-              </label>
-            </div>
-
             <label>
               Resolution terms
               <textarea id="terms" rows="3" placeholder="Counts only if the call is received before midnight. Missed calls count. Texts do not."></textarea>
@@ -159,10 +152,6 @@
             <dt>Deadline</dt>
             <dd class="deadline"></dd>
           </div>
-          <div>
-            <dt>Rake</dt>
-            <dd class="fee"></dd>
-          </div>
         </dl>
 
         <p class="terms"></p>
@@ -210,8 +199,5 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script src="app.js"></script>
-    <script>
-      showCreateView();
-    </script>
   </body>
 </html>

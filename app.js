@@ -1,6 +1,8 @@
 const STORAGE_KEY = "peerPressurePrototype";
 const USER_KEY = "peerPressureCurrentUser";
 const FOLLOW_KEY = "peerPressureFollowedMarkets";
+const INVITE_KEY = "peerPressureInviteCodes";
+const HIDDEN_PLATFORM_FEE = 2;
 
 const defaultMarkets = [
   {
@@ -10,8 +12,10 @@ const defaultMarkets = [
     cutoff: "2026-04-25T20:00",
     umpire: "Alex",
     minStake: 5,
-    platformFee: 2,
+    platformFee: HIDDEN_PLATFORM_FEE,
     oddsRake: 3,
+    visibility: "PUBLIC",
+    inviteCode: "",
     terms: "Counts only if the call is received before midnight. Missed calls count. Texts do not.",
     status: "OPEN",
     outcome: "",
@@ -28,8 +32,10 @@ const defaultMarkets = [
     cutoff: "2026-05-01T12:00",
     umpire: "Mia",
     minStake: 5,
-    platformFee: 2,
+    platformFee: HIDDEN_PLATFORM_FEE,
     oddsRake: 3,
+    visibility: "PUBLIC",
+    inviteCode: "",
     terms: "Dinner counts if at least four people attend and food is ordered by 9pm.",
     status: "OPEN",
     outcome: "",
@@ -57,6 +63,11 @@ const marketForm = document.querySelector("#marketForm");
 const marketList = document.querySelector("#marketList");
 const template = document.querySelector("#marketCardTemplate");
 const connectionStatus = document.querySelector("#connectionStatus");
+const createView = document.querySelector("#createView");
+const marketView = document.querySelector("#marketView");
+const showCreateButton = document.querySelector("#showCreateButton");
+const cancelCreateButton = document.querySelector("#cancelCreateButton");
+const inviteForm = document.querySelector("#inviteForm");
 
 currentUserInput.value = localStorage.getItem(USER_KEY) || "You";
 currentUserInput.addEventListener("input", () => {
@@ -66,6 +77,7 @@ currentUserInput.addEventListener("input", () => {
 
 marketForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const visibility = document.querySelector("input[name='visibility']:checked").value;
 
   const market = {
     id: crypto.randomUUID(),
@@ -74,8 +86,10 @@ marketForm.addEventListener("submit", async (event) => {
     cutoff: valueOf("cutoff"),
     umpire: valueOf("umpire"),
     minStake: numberOf("minStake"),
-    platformFee: numberOf("platformFee"),
+    platformFee: HIDDEN_PLATFORM_FEE,
     oddsRake: numberOf("oddsRake"),
+    visibility,
+    inviteCode: visibility === "INVITE_ONLY" ? createInviteCode() : "",
     terms: valueOf("terms") || "No extra terms added.",
     status: "OPEN",
     outcome: "",
@@ -91,9 +105,10 @@ marketForm.addEventListener("submit", async (event) => {
   }
 
   marketForm.reset();
+  document.querySelector("input[name='visibility'][value='PUBLIC']").checked = true;
   document.querySelector("#minStake").value = 5;
-  document.querySelector("#platformFee").value = 2;
   document.querySelector("#oddsRake").value = 3;
+  showMarketView();
 });
 
 document.querySelectorAll(".filter-button").forEach((button) => {
@@ -104,6 +119,19 @@ document.querySelectorAll(".filter-button").forEach((button) => {
     });
     render();
   });
+});
+
+showCreateButton.addEventListener("click", showCreateView);
+cancelCreateButton.addEventListener("click", showMarketView);
+
+inviteForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const code = valueOf("inviteCode").toUpperCase();
+  if (!code) return;
+
+  saveInviteCode(code);
+  document.querySelector("#inviteCode").value = "";
+  render();
 });
 
 boot();
@@ -209,8 +237,10 @@ function fromDatabaseMarket(row) {
     cutoff: toLocalInputDate(row.cutoff),
     umpire: row.umpire,
     minStake: Number(row.min_stake),
-    platformFee: Number(row.platform_fee),
+    platformFee: Number(row.platform_fee || HIDDEN_PLATFORM_FEE),
     oddsRake: Number(row.odds_rake),
+    visibility: row.visibility || "PUBLIC",
+    inviteCode: row.invite_code || "",
     terms: row.terms,
     status: row.status,
     outcome: row.outcome,
@@ -232,6 +262,8 @@ function toDatabaseMarket(market) {
     min_stake: market.minStake,
     platform_fee: market.platformFee,
     odds_rake: market.oddsRake,
+    visibility: market.visibility,
+    invite_code: market.inviteCode,
     terms: market.terms,
     status: market.status,
     outcome: market.outcome
@@ -264,6 +296,29 @@ function loadFollowedMarketIds() {
   } catch {
     return [];
   }
+}
+
+function loadInviteCodes() {
+  const raw = localStorage.getItem(INVITE_KEY);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInviteCode(code) {
+  const codes = new Set(loadInviteCodes());
+  codes.add(code);
+  localStorage.setItem(INVITE_KEY, JSON.stringify([...codes]));
+}
+
+function hasInviteAccess(market) {
+  if (market.visibility !== "INVITE_ONLY") return true;
+  return loadInviteCodes().includes(market.inviteCode) || isFollowing(market);
 }
 
 function isFollowing(market) {
@@ -324,6 +379,7 @@ function getPayout(market, entry) {
 
 function filteredMarkets() {
   return markets.filter((market) => {
+    if (!hasInviteAccess(market)) return false;
     if (activeFilter === "followed") return isFollowing(market);
     if (activeFilter === "open") return market.status === "OPEN";
     if (activeFilter === "settled") return market.status === "SETTLED";
@@ -365,6 +421,7 @@ function renderMarkets() {
     const pools = getPools(market);
     const odds = getOdds(market);
     const statusPill = card.querySelector(".status-pill");
+    const visibilityPill = card.querySelector(".visibility-pill");
     const followButton = card.querySelector(".follow-button");
     const entryForm = card.querySelector(".entry-form");
 
@@ -372,8 +429,9 @@ function renderMarkets() {
     card.querySelector(".umpire").textContent = market.umpire;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
     card.querySelector(".deadline").textContent = formatDate(market.deadline);
-    card.querySelector(".fee").textContent = `${market.platformFee}% + ${market.oddsRake}%`;
+    card.querySelector(".fee").textContent = `${market.oddsRake}%`;
     card.querySelector(".terms").textContent = market.terms;
+    renderInviteRead(card, market);
     card.querySelector(".yes-pool").textContent = money.format(pools.yes);
     card.querySelector(".no-pool").textContent = money.format(pools.no);
     card.querySelector(".yes-odds").textContent = formatOdds(odds.yesOdds, odds.yesShare);
@@ -383,6 +441,7 @@ function renderMarkets() {
     statusPill.textContent = market.outcome ? `${market.outcome} resolved` : market.status;
     statusPill.classList.toggle("void", market.outcome === "VOID");
     statusPill.classList.toggle("settled", market.status === "SETTLED" && market.outcome !== "VOID");
+    visibilityPill.textContent = market.visibility === "INVITE_ONLY" ? "Invite only" : "Public";
 
     followButton.textContent = isFollowing(market) ? "Following" : "Follow";
     followButton.classList.toggle("following", isFollowing(market));
@@ -482,6 +541,40 @@ function toLocalInputDate(value) {
 function formatOdds(decimalOdds, share) {
   if (!decimalOdds) return "No pool yet";
   return `${decimalOdds.toFixed(2)}x payout | ${(share * 100).toFixed(0)}% of pool`;
+}
+
+function renderInviteRead(card, market) {
+  const inviteRead = card.querySelector(".invite-read");
+  if (market.visibility !== "INVITE_ONLY") {
+    inviteRead.classList.remove("visible");
+    inviteRead.textContent = "";
+    return;
+  }
+
+  inviteRead.classList.add("visible");
+  inviteRead.textContent = `Invite code: ${market.inviteCode}`;
+}
+
+function showCreateView() {
+  createView.hidden = false;
+  marketView.hidden = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showMarketView() {
+  createView.hidden = true;
+  marketView.hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function createInviteCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let index = 0; index < 6; index += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  saveInviteCode(code);
+  return code;
 }
 
 function payoutRead(market) {

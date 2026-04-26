@@ -187,7 +187,18 @@ function subscribeToSharedChanges() {
 }
 
 async function createSharedMarket(market) {
-  const { error } = await dbClient.from("markets").insert(toDatabaseMarket(market));
+  const { data: authData } = await dbClient.auth.getUser();
+  const user = authData && authData.user;
+
+  if (!user) {
+    setConnection("Please sign in before creating a bet.", "error");
+    return false;
+  }
+
+  const payload = toDatabaseMarket(market);
+  payload.owner_id = user.id;
+
+  const { error } = await dbClient.from("markets").insert(payload);
 
   if (error) {
     setConnection(`Could not create bet: ${error.message}`, "error");

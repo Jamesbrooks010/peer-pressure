@@ -82,6 +82,12 @@ alter table public.entries
 alter table public.entries
   alter column user_id set default auth.uid();
 
+alter table public.entries
+  add column if not exists locked_profit numeric not null default 0 check (locked_profit >= 0);
+
+alter table public.entries
+  add column if not exists locked_payout numeric not null default 0 check (locked_payout >= 0);
+
 create or replace function public.is_market_participant(check_market_id uuid)
 returns boolean
 language sql
@@ -112,7 +118,7 @@ as $$
   );
 $$;
 
-create or replace function public.prevent_entry_side_switch()
+create or replace function public.prepare_entry_before_insert()
 returns trigger
 language plpgsql
 security definer
@@ -120,6 +126,9 @@ set search_path = public
 as $$
 declare
   existing_side text;
+  same_pool numeric := 0;
+  opposite_pool numeric := 0;
+  fee_rate numeric := 0;
 begin
   if new.user_id is null then
     new.user_id := auth.uid();
@@ -137,16 +146,36 @@ begin
     end if;
   end if;
 
+  select coalesce((market.platform_fee + market.odds_rake) / 100, 0)
+  into fee_rate
+  from public.markets market
+  where market.id = new.market_id;
+
+  select
+    coalesce(sum(case when entry.side = new.side then entry.amount else 0 end), 0),
+    coalesce(sum(case when entry.side <> new.side then entry.amount else 0 end), 0)
+  into same_pool, opposite_pool
+  from public.entries entry
+  where entry.market_id = new.market_id;
+
+  new.locked_profit := case
+    when opposite_pool > 0 then (new.amount / (same_pool + new.amount)) * opposite_pool * (1 - fee_rate)
+    else 0
+  end;
+
+  new.locked_payout := new.amount + new.locked_profit;
+
   return new;
 end;
 $$;
 
 drop trigger if exists prevent_entry_side_switch_trigger on public.entries;
+drop trigger if exists prepare_entry_before_insert_trigger on public.entries;
 
-create trigger prevent_entry_side_switch_trigger
+create trigger prepare_entry_before_insert_trigger
 before insert on public.entries
 for each row
-execute function public.prevent_entry_side_switch();
+execute function public.prepare_entry_before_insert();
 
 alter table public.markets enable row level security;
 alter table public.market_participants enable row level security;

@@ -59,6 +59,9 @@ alter table public.markets
 alter table public.markets
   alter column owner_id set default auth.uid();
 
+alter table public.markets
+  add column if not exists archived_at timestamptz;
+
 create table if not exists public.market_participants (
   market_id uuid not null references public.markets(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -200,9 +203,12 @@ drop policy if exists "Signed in users can create visible entries" on public.ent
 create policy "Markets can be read by allowed users"
   on public.markets for select
   using (
-    visibility = 'PUBLIC'
-    or owner_id = auth.uid()
-    or public.is_market_participant(id)
+    archived_at is null
+    and (
+      visibility = 'PUBLIC'
+      or owner_id = auth.uid()
+      or public.is_market_participant(id)
+    )
   );
 
 create policy "Signed in users can create markets"
@@ -231,6 +237,7 @@ create policy "Entries can be read with visible markets"
       select 1
       from public.markets market
       where market.id = entries.market_id
+        and market.archived_at is null
         and (
           market.visibility = 'PUBLIC'
           or market.owner_id = auth.uid()
@@ -249,6 +256,7 @@ create policy "Signed in users can create visible entries"
       from public.markets market
       where market.id = entries.market_id
         and market.status = 'OPEN'
+        and market.archived_at is null
         and (
           market.visibility = 'PUBLIC'
           or market.owner_id = auth.uid()
@@ -297,6 +305,7 @@ begin
   select id into target_market_id
   from public.markets
   where visibility = 'INVITE_ONLY'
+    and archived_at is null
     and invite_code = upper(trim(invite))
   limit 1;
 
@@ -312,7 +321,28 @@ begin
 end;
 $$;
 
+create or replace function public.archive_market(target_market_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.markets
+  set archived_at = now()
+  where id = target_market_id
+    and owner_id = auth.uid()
+    and status = 'SETTLED'
+    and archived_at is null;
+
+  if not found then
+    raise exception 'Only the owner can archive a settled bet.';
+  end if;
+end;
+$$;
+
 grant execute on function public.join_market_by_invite(text) to authenticated;
+grant execute on function public.archive_market(uuid) to authenticated;
 
 do $$
 begin

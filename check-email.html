@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Check Email | Peer Pressure</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell create-page-shell">
+      <section class="topbar" aria-label="Check email header">
+        <div>
+          <p class="eyebrow">Peer Pressure</p>
+          <h1>Check your email.</h1>
+          <p id="connectionStatus" class="connection-status live">We sent you a verification link.</p>
+        </div>
+        <div class="top-actions">
+          <a class="ghost-button action-link" href="auth.html">Sign In</a>
+          <a class="ghost-button action-link" href="index.html">Home</a>
+        </div>
+      </section>
+
+      <section class="auth-grid compact-auth-grid">
+        <aside class="panel create-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Verify Email</p>
+              <h2>Almost there</h2>
+            </div>
+          </div>
+
+          <div class="stack">
+            <p class="terms" id="emailRead">Open the verification email from Supabase, click the link, and we will take you back to Peer Pressure signed in.</p>
+            <a class="primary-button action-link full-action" href="auth.html">I verified my email</a>
+            <a class="ghost-button action-link full-action" href="signup.html">Use a different email</a>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const email = params.get("email") || localStorage.getItem("peerPressurePendingEmail");
+      const read = document.querySelector("#emailRead");
+      if (email && read) {
+        read.textContent = `Open the verification email sent to ${email}, click the link, and we will take you back to Peer Pressure signed in.`;
+      }
+    </script>
+  </body>
+</html>

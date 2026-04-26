@@ -295,7 +295,9 @@ function fromDatabaseMarket(row) {
       userId: entry.user_id || "",
       person: entry.person,
       side: entry.side,
-      amount: Number(entry.amount)
+      amount: Number(entry.amount),
+      lockedProfit: Number(entry.locked_profit || 0),
+      lockedPayout: Number(entry.locked_payout || 0)
     }))
   };
 }
@@ -422,13 +424,27 @@ function getOdds(market) {
 }
 
 function getPayout(market, entry) {
-  const pools = getPools(market);
   if (!market.outcome) return null;
   if (market.outcome === "VOID") return entry.amount;
   if (entry.side !== market.outcome) return 0;
+  if (entry.lockedPayout > 0) return entry.lockedPayout;
 
+  const pools = getPools(market);
   const winningPool = market.outcome === "YES" ? pools.yes : pools.no;
-  return winningPool > 0 ? (entry.amount / winningPool) * pools.net : 0;
+  return winningPool > 0 ? entry.amount + (entry.amount / winningPool) * losingPoolForSide(market, entry.side) * (1 - pools.feeRate) : entry.amount;
+}
+
+function quoteLockedPayout(market, side, amount) {
+  const pools = getPools(market);
+  const samePool = side === "YES" ? pools.yes : pools.no;
+  const oppositePool = side === "YES" ? pools.no : pools.yes;
+  const profit = oppositePool > 0 ? (amount / (samePool + amount)) * oppositePool * (1 - pools.feeRate) : 0;
+  return amount + profit;
+}
+
+function losingPoolForSide(market, side) {
+  const pools = getPools(market);
+  return side === "YES" ? pools.no : pools.yes;
 }
 
 function sideForCurrentUser(market, fallbackName = currentDisplayName(), userId = currentUserId) {
@@ -487,6 +503,7 @@ function renderMarkets() {
 
   visibleMarkets.forEach((market) => {
     const card = template.content.firstElementChild.cloneNode(true);
+    const pools = getPools(market);
     const odds = getOdds(market);
     const statusPill = card.querySelector(".status-pill");
     const visibilityPill = card.querySelector(".visibility-pill");
@@ -499,10 +516,10 @@ function renderMarkets() {
     card.querySelector(".deadline").textContent = formatDate(market.deadline);
     card.querySelector(".terms").textContent = market.terms;
     renderInviteRead(card, market);
-    card.querySelector(".yes-pool").textContent = formatProbability(odds.yesShare);
-    card.querySelector(".no-pool").textContent = formatProbability(odds.noShare);
-    card.querySelector(".yes-odds").textContent = "implied chance for";
-    card.querySelector(".no-odds").textContent = "implied chance against";
+    card.querySelector(".yes-pool").textContent = money.format(pools.yes);
+    card.querySelector(".no-pool").textContent = money.format(pools.no);
+    card.querySelector(".yes-odds").textContent = `YES pool | ${formatProbability(odds.yesShare)} implied`;
+    card.querySelector(".no-odds").textContent = `NO pool | ${formatProbability(odds.noShare)} implied`;
     card.querySelector(".payout-read").textContent = payoutRead(market);
 
     statusPill.textContent = market.outcome ? `${market.outcome} resolved` : market.status;
@@ -551,6 +568,8 @@ function renderMarkets() {
       if (isSharedMode) {
         await createSharedEntry(market, entry);
       } else {
+        entry.lockedPayout = quoteLockedPayout(market, entry.side, entry.amount);
+        entry.lockedProfit = entry.lockedPayout - entry.amount;
         market.entries.push(entry);
         saveLocalMarkets();
         render();
@@ -589,13 +608,14 @@ function renderLedger(container, market) {
 
   market.entries.forEach((entry) => {
     const payout = getPayout(market, entry);
+    const lockedPayout = entry.lockedPayout || quoteLockedPayout(market, entry.side, entry.amount);
     const row = document.createElement("div");
     row.className = "ledger-row";
     row.innerHTML = `
       <strong>${escapeHtml(entry.person)}</strong>
       <span>${entry.side}</span>
       <span>${money.format(entry.amount)}</span>
-      <span>${payout === null ? "Open" : `${money.format(payout)} payout`}</span>
+      <span>${payout === null ? `Locked ${money.format(lockedPayout)} if wins` : `${money.format(payout)} payout`}</span>
     `;
     container.append(row);
   });
@@ -644,11 +664,12 @@ function createInviteCode() {
 }
 
 function payoutRead(market) {
+  const pools = getPools(market);
   const odds = getOdds(market);
   if (market.outcome === "VOID") return "Void: all stakes return.";
-  if (market.outcome) return `${market.outcome} resolved.`;
-  if (!odds.yesShare && !odds.noShare) return "Market line will appear once friends join.";
-  return `Line: YES ${formatProbability(odds.yesShare)} / NO ${formatProbability(odds.noShare)} implied.`;
+  if (market.outcome) return `${market.outcome} resolved. Winning entries pay at their locked payout.`;
+  if (!pools.gross) return "Market line will appear once friends join.";
+  return `Pools: YES ${money.format(pools.yes)} / NO ${money.format(pools.no)}. Line: YES ${formatProbability(odds.yesShare)} / NO ${formatProbability(odds.noShare)} implied.`;
 }
 
 function setConnection(message, state) {

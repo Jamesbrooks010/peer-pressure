@@ -76,6 +76,12 @@ create table if not exists public.entries (
   created_at timestamptz not null default now()
 );
 
+alter table public.entries
+  add column if not exists user_id uuid references auth.users(id) on delete set null;
+
+alter table public.entries
+  alter column user_id set default auth.uid();
+
 create or replace function public.is_market_participant(check_market_id uuid)
 returns boolean
 language sql
@@ -105,6 +111,42 @@ as $$
       and market.owner_id = auth.uid()
   );
 $$;
+
+create or replace function public.prevent_entry_side_switch()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_side text;
+begin
+  if new.user_id is null then
+    new.user_id := auth.uid();
+  end if;
+
+  if new.user_id is not null then
+    select entry.side into existing_side
+    from public.entries entry
+    where entry.market_id = new.market_id
+      and entry.user_id = new.user_id
+    limit 1;
+
+    if existing_side is not null and existing_side <> new.side then
+      raise exception 'You are already on %. You can add more there, but you cannot switch sides.', existing_side;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_entry_side_switch_trigger on public.entries;
+
+create trigger prevent_entry_side_switch_trigger
+before insert on public.entries
+for each row
+execute function public.prevent_entry_side_switch();
 
 alter table public.markets enable row level security;
 alter table public.market_participants enable row level security;
@@ -138,7 +180,7 @@ create policy "Signed in users can create markets"
   on public.markets for insert
   with check (
     auth.uid() is not null
-    and coalesce(owner_id, auth.uid()) = auth.uid()
+    and owner_id = auth.uid()
   );
 
 create policy "Market owners can update markets"
@@ -172,6 +214,7 @@ create policy "Signed in users can create visible entries"
   on public.entries for insert
   with check (
     auth.uid() is not null
+    and user_id = auth.uid()
     and exists (
       select 1
       from public.markets market
@@ -262,3 +305,5 @@ begin
 exception
   when duplicate_object then null;
 end $$;
+
+notify pgrst, 'reload schema';

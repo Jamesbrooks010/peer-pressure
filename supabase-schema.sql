@@ -76,6 +76,36 @@ create table if not exists public.entries (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.is_market_participant(check_market_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.market_participants participant
+    where participant.market_id = check_market_id
+      and participant.user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_market_owner(check_market_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.markets market
+    where market.id = check_market_id
+      and market.owner_id = auth.uid()
+  );
+$$;
+
 alter table public.markets enable row level security;
 alter table public.market_participants enable row level security;
 alter table public.entries enable row level security;
@@ -101,12 +131,7 @@ create policy "Markets can be read by allowed users"
   using (
     visibility = 'PUBLIC'
     or owner_id = auth.uid()
-    or exists (
-      select 1
-      from public.market_participants participant
-      where participant.market_id = markets.id
-        and participant.user_id = auth.uid()
-    )
+    or public.is_market_participant(id)
   );
 
 create policy "Signed in users can create markets"
@@ -125,17 +150,8 @@ create policy "Market participants can be read by members"
   on public.market_participants for select
   using (
     user_id = auth.uid()
-    or exists (
-      select 1
-      from public.markets market
-      where market.id = market_participants.market_id
-        and market.owner_id = auth.uid()
-    )
+    or public.is_market_owner(market_id)
   );
-
-create policy "Users can join market participants through functions"
-  on public.market_participants for insert
-  with check (user_id = auth.uid());
 
 create policy "Entries can be read with visible markets"
   on public.entries for select
@@ -147,12 +163,7 @@ create policy "Entries can be read with visible markets"
         and (
           market.visibility = 'PUBLIC'
           or market.owner_id = auth.uid()
-          or exists (
-            select 1
-            from public.market_participants participant
-            where participant.market_id = market.id
-              and participant.user_id = auth.uid()
-          )
+          or public.is_market_participant(market.id)
         )
     )
   );
@@ -169,12 +180,7 @@ create policy "Signed in users can create visible entries"
         and (
           market.visibility = 'PUBLIC'
           or market.owner_id = auth.uid()
-          or exists (
-            select 1
-            from public.market_participants participant
-            where participant.market_id = market.id
-              and participant.user_id = auth.uid()
-          )
+          or public.is_market_participant(market.id)
         )
     )
   );

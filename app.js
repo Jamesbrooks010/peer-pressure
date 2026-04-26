@@ -115,14 +115,19 @@ document.querySelectorAll(".filter-button").forEach((button) => {
 });
 
 if (inviteForm) {
-  inviteForm.addEventListener("submit", (event) => {
+  inviteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const code = valueOf("inviteCode").toUpperCase();
     if (!code) return;
 
-    saveInviteCode(code);
+    if (isSharedMode) {
+      await joinSharedInvite(code);
+    } else {
+      saveInviteCode(code);
+      render();
+    }
+
     document.querySelector("#inviteCode").value = "";
-    render();
   });
 }
 
@@ -177,6 +182,7 @@ function subscribeToSharedChanges() {
     .channel("peer-pressure-shared-markets")
     .on("postgres_changes", { event: "*", schema: "public", table: "markets" }, loadSharedMarkets)
     .on("postgres_changes", { event: "*", schema: "public", table: "entries" }, loadSharedMarkets)
+    .on("postgres_changes", { event: "*", schema: "public", table: "market_participants" }, loadSharedMarkets)
     .subscribe();
 }
 
@@ -204,6 +210,19 @@ async function createSharedEntry(market, entry) {
     return;
   }
 
+  await loadSharedMarkets();
+}
+
+async function joinSharedInvite(code) {
+  const { error } = await dbClient.rpc("join_market_by_invite", { invite: code });
+
+  if (error) {
+    setConnection(`Could not open invite: ${error.message}`, "error");
+    return;
+  }
+
+  saveInviteCode(code);
+  setConnection("Invite opened. Private bet added to your markets.", "live");
   await loadSharedMarkets();
 }
 
@@ -310,6 +329,7 @@ function saveInviteCode(code) {
 
 function hasInviteAccess(market) {
   if (market.visibility !== "INVITE_ONLY") return true;
+  if (isSharedMode) return true;
   return loadInviteCodes().includes(market.inviteCode) || isFollowing(market);
 }
 

@@ -52,6 +52,7 @@ let activeFilter = "all";
 let dbClient = null;
 let realtimeChannel = null;
 let isSharedMode = false;
+let currentUserId = "";
 
 const money = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -139,6 +140,8 @@ async function boot() {
 
   if (isSharedMode) {
     setConnection("Connecting to shared markets...", "live");
+    const user = await getSignedInUser();
+    currentUserId = user ? user.id : "";
     await loadSharedMarkets();
     subscribeToSharedChanges();
   } else {
@@ -155,6 +158,12 @@ function createDatabaseClient() {
 
   if (!hasConfig || !hasLibrary) return null;
   return window.supabase.createClient(config.url, config.anonKey);
+}
+
+async function getSignedInUser() {
+  if (!dbClient) return null;
+  const { data } = await dbClient.auth.getUser();
+  return data && data.user ? data.user : null;
 }
 
 async function loadSharedMarkets() {
@@ -187,14 +196,14 @@ function subscribeToSharedChanges() {
 }
 
 async function createSharedMarket(market) {
-  const { data: authData } = await dbClient.auth.getUser();
-  const user = authData && authData.user;
+  const user = await getSignedInUser();
 
   if (!user) {
     setConnection("Please sign in before creating a bet.", "error");
     return false;
   }
 
+  currentUserId = user.id;
   const payload = toDatabaseMarket(market);
   payload.owner_id = user.id;
 
@@ -209,8 +218,23 @@ async function createSharedMarket(market) {
 }
 
 async function createSharedEntry(market, entry) {
+  const user = await getSignedInUser();
+
+  if (!user) {
+    setConnection("Please sign in before joining a bet.", "error");
+    return;
+  }
+
+  currentUserId = user.id;
+  const existingSide = sideForCurrentUser(market, entry.person, user.id);
+  if (existingSide && existingSide !== entry.side) {
+    setConnection(`You are already on ${existingSide}. You can add more there, but you cannot switch sides.`, "error");
+    return;
+  }
+
   const { error } = await dbClient.from("entries").insert({
     market_id: market.id,
+    user_id: user.id,
     person: entry.person,
     side: entry.side,
     amount: entry.amount
@@ -268,6 +292,7 @@ function fromDatabaseMarket(row) {
     outcome: row.outcome,
     entries: (row.entries || []).map((entry) => ({
       id: entry.id,
+      userId: entry.user_id || "",
       person: entry.person,
       side: entry.side,
       amount: Number(entry.amount)
@@ -406,6 +431,15 @@ function getPayout(market, entry) {
   return winningPool > 0 ? (entry.amount / winningPool) * pools.net : 0;
 }
 
+function sideForCurrentUser(market, fallbackName = currentDisplayName(), userId = currentUserId) {
+  const matched = market.entries.find((entry) => {
+    if (userId && entry.userId) return entry.userId === userId;
+    return entry.person.trim().toLowerCase() === fallbackName.trim().toLowerCase();
+  });
+
+  return matched ? matched.side : "";
+}
+
 function filteredMarkets() {
   return markets.filter((market) => {
     if (!hasInviteAccess(market)) return false;
@@ -458,6 +492,7 @@ function renderMarkets() {
     const visibilityPill = card.querySelector(".visibility-pill");
     const followButton = card.querySelector(".follow-button");
     const entryForm = card.querySelector(".entry-form");
+    const sideSelect = card.querySelector(".side-select");
 
     card.querySelector("h3").textContent = market.question;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
@@ -488,6 +523,12 @@ function renderMarkets() {
     amountInput.min = market.minStake;
     amountInput.placeholder = `$${market.minStake}+`;
 
+    const existingSide = sideForCurrentUser(market, personInput.value);
+    if (existingSide) {
+      sideSelect.value = existingSide;
+      sideSelect.disabled = true;
+    }
+
     entryForm.hidden = market.status !== "OPEN";
     entryForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -497,9 +538,15 @@ function renderMarkets() {
       const entry = {
         id: crypto.randomUUID(),
         person: personInput.value.trim() || currentDisplayName() || "Friend",
-        side: card.querySelector(".side-select").value,
+        side: sideSelect.value,
         amount
       };
+
+      const existingEntrySide = sideForCurrentUser(market, entry.person);
+      if (existingEntrySide && existingEntrySide !== entry.side) {
+        setConnection(`You are already on ${existingEntrySide}. You can add more there, but you cannot switch sides.`, "error");
+        return;
+      }
 
       if (isSharedMode) {
         await createSharedEntry(market, entry);

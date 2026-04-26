@@ -507,9 +507,22 @@ dd {
 
 .entry-form {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr 0.8fr auto;
+  grid-template-columns: 0.7fr 0.8fr 1.4fr auto;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.quote-read {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .resolve-actions {

@@ -170,6 +170,7 @@ async function loadSharedMarkets() {
   const { data, error } = await dbClient
     .from("markets")
     .select("*, entries(*)")
+    .is("archived_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -226,7 +227,8 @@ async function createSharedEntry(market, entry) {
   }
 
   currentUserId = user.id;
-  const existingSide = sideForCurrentUser(market, entry.person, user.id);
+  const person = currentDisplayName();
+  const existingSide = sideForCurrentUser(market, person, user.id);
   if (existingSide && existingSide !== entry.side) {
     setConnection(`You are already on ${existingSide}. You can add more there, but you cannot switch sides.`, "error");
     return;
@@ -235,7 +237,7 @@ async function createSharedEntry(market, entry) {
   const { error } = await dbClient.from("entries").insert({
     market_id: market.id,
     user_id: user.id,
-    person: entry.person,
+    person,
     side: entry.side,
     amount: entry.amount
   });
@@ -442,6 +444,13 @@ function quoteLockedPayout(market, side, amount) {
   return amount + profit;
 }
 
+function quoteRead(market, side, amount) {
+  if (!amount || amount < market.minStake) return `Min stake ${money.format(market.minStake)}`;
+  const payout = quoteLockedPayout(market, side, amount);
+  const profit = Math.max(0, payout - amount);
+  return `Pays ${money.format(payout)} if ${side} wins (${money.format(profit)} profit)`;
+}
+
 function losingPoolForSide(market, side) {
   const pools = getPools(market);
   return side === "YES" ? pools.no : pools.yes;
@@ -510,6 +519,8 @@ function renderMarkets() {
     const followButton = card.querySelector(".follow-button");
     const entryForm = card.querySelector(".entry-form");
     const sideSelect = card.querySelector(".side-select");
+    const amountInput = card.querySelector(".amount-input");
+    const quoteOutput = card.querySelector(".quote-read");
 
     card.querySelector("h3").textContent = market.question;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
@@ -534,17 +545,21 @@ function renderMarkets() {
       render();
     });
 
-    const personInput = card.querySelector(".person-input");
-    const amountInput = card.querySelector(".amount-input");
-    personInput.value = currentDisplayName();
     amountInput.min = market.minStake;
     amountInput.placeholder = `$${market.minStake}+`;
 
-    const existingSide = sideForCurrentUser(market, personInput.value);
+    const updateQuote = () => {
+      quoteOutput.textContent = quoteRead(market, sideSelect.value, Number(amountInput.value));
+    };
+
+    const existingSide = sideForCurrentUser(market);
     if (existingSide) {
       sideSelect.value = existingSide;
       sideSelect.disabled = true;
     }
+    updateQuote();
+    sideSelect.addEventListener("change", updateQuote);
+    amountInput.addEventListener("input", updateQuote);
 
     entryForm.hidden = market.status !== "OPEN";
     entryForm.addEventListener("submit", async (event) => {
@@ -554,7 +569,7 @@ function renderMarkets() {
 
       const entry = {
         id: crypto.randomUUID(),
-        person: personInput.value.trim() || currentDisplayName() || "Friend",
+        person: currentDisplayName(),
         side: sideSelect.value,
         amount
       };

@@ -9,6 +9,7 @@ const signinForm = document.querySelector("#signinForm");
 const statusLine = document.querySelector("#connectionStatus");
 
 if (!authClient) setStatus("Account system is not connected yet.", "error");
+if (authClient && signinForm) completeEmailVerificationIfPresent();
 
 signupForm && signupForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -18,26 +19,24 @@ signupForm && signupForm.addEventListener("submit", async (event) => {
   const email = valueOf("signupEmail").toLowerCase();
   const password = valueOf("signupPassword");
 
-  const { data, error } = await authClient.auth.signUp({
+  localStorage.setItem("peerPressurePendingUsername", username);
+  localStorage.setItem("peerPressurePendingEmail", email);
+
+  const { error } = await authClient.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}${window.location.pathname.replace("signup.html", "auth.html")}`,
+      emailRedirectTo: getAuthRedirectUrl(),
       data: { username }
     }
   });
 
   if (error) {
-    setStatus(error.message, "error");
+    setStatus(friendlyAuthError(error.message), "error");
     return;
   }
 
-  const user = data && data.user;
-  if (user) await saveProfile(user.id, username, email);
-
-  localStorage.setItem("peerPressureCurrentUser", username);
-  setStatus("Account created. Check your email to verify, then sign in.", "live");
-  signupForm.reset();
+  window.location.href = `check-email.html?email=${encodeURIComponent(email)}`;
 });
 
 signinForm && signinForm.addEventListener("submit", async (event) => {
@@ -49,16 +48,34 @@ signinForm && signinForm.addEventListener("submit", async (event) => {
 
   const { data, error } = await authClient.auth.signInWithPassword({ email, password });
   if (error) {
-    setStatus(error.message, "error");
+    setStatus(friendlyAuthError(error.message), "error");
     return;
   }
 
   const user = data && data.user;
-  const username = user ? await loadUsername(user) : email;
+  await completeSignedInUser(user);
+});
+
+async function completeEmailVerificationIfPresent() {
+  const { data } = await authClient.auth.getSession();
+  const user = data && data.session && data.session.user;
+  if (!user) return;
+
+  setStatus("Email verified. Taking you to Peer Pressure...", "live");
+  await completeSignedInUser(user);
+}
+
+async function completeSignedInUser(user) {
+  if (!user) return;
+
+  const username = await loadUsername(user);
+  await saveProfile(user.id, username, user.email || "");
   localStorage.setItem("peerPressureCurrentUser", username);
+  localStorage.removeItem("peerPressurePendingUsername");
+  localStorage.removeItem("peerPressurePendingEmail");
   setStatus("Signed in. Taking you back to Peer Pressure...", "live");
   window.location.href = "index.html";
-});
+}
 
 async function saveProfile(id, username, email) {
   const { error } = await authClient.from("profiles").upsert({
@@ -77,7 +94,34 @@ async function loadUsername(user) {
     .eq("id", user.id)
     .maybeSingle();
 
-  return (data && data.username) || (user.user_metadata && user.user_metadata.username) || user.email || "Friend";
+  return (
+    (data && data.username)
+    || (user.user_metadata && user.user_metadata.username)
+    || localStorage.getItem("peerPressurePendingUsername")
+    || user.email
+    || "Friend"
+  );
+}
+
+function getAuthRedirectUrl() {
+  if (window.location.origin === "null") {
+    return "https://jamesbrooks010.github.io/peer-pressure/auth.html";
+  }
+
+  return `${window.location.origin}${window.location.pathname.replace("signup.html", "auth.html")}`;
+}
+
+function friendlyAuthError(message) {
+  const lower = message.toLowerCase();
+  if (lower.includes("email not confirmed") || lower.includes("email_confirmed")) {
+    return "That email still needs to be verified. Open the Supabase email and click the confirmation link, then sign in again.";
+  }
+
+  if (lower.includes("invalid login credentials")) {
+    return "Those login details do not match. Check the email and password, or create a new account.";
+  }
+
+  return message;
 }
 
 function valueOf(id) {

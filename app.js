@@ -5,6 +5,10 @@ const INVITE_KEY = "peerPressureInviteCodes";
 const HIDDEN_PLATFORM_FEE = 2;
 const HIDDEN_ODDS_RAKE = 3;
 
+const pageParams = new URLSearchParams(window.location.search);
+const detailMarketId = pageParams.get("id") || "";
+const isDetailPage = Boolean(detailMarketId);
+
 const defaultMarkets = [
   {
     id: crypto.randomUUID(),
@@ -66,6 +70,8 @@ const template = document.querySelector("#marketCardTemplate");
 const connectionStatus = document.querySelector("#connectionStatus");
 const inviteForm = document.querySelector("#inviteForm");
 
+document.body.classList.toggle("detail-mode", isDetailPage);
+document.body.classList.toggle("list-mode", !isDetailPage);
 window.addEventListener("peerpressure:userchange", render);
 
 if (marketForm) {
@@ -179,7 +185,7 @@ async function loadSharedMarkets() {
     isSharedMode = false;
   } else {
     markets = data.map(fromDatabaseMarket);
-    setConnection("Shared mode: markets sync through Supabase.", "live");
+    setConnection(isDetailPage ? "Shared mode: bet detail syncs through Supabase." : "Shared mode: markets sync through Supabase.", "live");
   }
 
   render();
@@ -251,7 +257,7 @@ async function createSharedEntry(market, entry) {
 }
 
 async function joinSharedInvite(code) {
-  const { error } = await dbClient.rpc("join_market_by_invite", { invite: code });
+  const { data, error } = await dbClient.rpc("join_market_by_invite", { invite: code });
 
   if (error) {
     setConnection(`Could not open invite: ${error.message}`, "error");
@@ -261,6 +267,7 @@ async function joinSharedInvite(code) {
   saveInviteCode(code);
   setConnection("Invite opened. Private bet added to your markets.", "live");
   await loadSharedMarkets();
+  if (data) window.location.href = `detail.html?id=${data}`;
 }
 
 async function resolveSharedMarket(market, outcome) {
@@ -468,6 +475,7 @@ function sideForCurrentUser(market, fallbackName = currentDisplayName(), userId 
 function filteredMarkets() {
   return markets.filter((market) => {
     if (!hasInviteAccess(market)) return false;
+    if (isDetailPage) return market.id === detailMarketId;
     if (activeFilter === "followed") return isFollowing(market);
     if (activeFilter === "open") return market.status === "OPEN";
     if (activeFilter === "settled") return market.status === "SETTLED";
@@ -505,13 +513,15 @@ function renderMarkets() {
   if (visibleMarkets.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No bets match this view yet.";
+    empty.textContent = isDetailPage ? "This bet is not available, or you do not have access yet." : "No bets match this view yet.";
     marketList.append(empty);
     return;
   }
 
   visibleMarkets.forEach((market) => {
     const card = template.content.firstElementChild.cloneNode(true);
+    card.classList.toggle("market-card-summary", !isDetailPage);
+
     const pools = getPools(market);
     const odds = getOdds(market);
     const statusPill = card.querySelector(".status-pill");
@@ -544,6 +554,14 @@ function renderMarkets() {
       toggleFollow(market);
       render();
     });
+
+    if (!isDetailPage) {
+      const detailLink = document.createElement("a");
+      detailLink.className = "primary-button action-link compact-button detail-link";
+      detailLink.href = `detail.html?id=${market.id}`;
+      detailLink.textContent = "View Bet";
+      card.querySelector(".card-topline").append(detailLink);
+    }
 
     amountInput.min = market.minStake;
     amountInput.placeholder = `$${market.minStake}+`;

@@ -531,11 +531,15 @@ function renderMarkets() {
     const sideSelect = card.querySelector(".side-select");
     const amountInput = card.querySelector(".amount-input");
     const quoteOutput = card.querySelector(".quote-read");
+    const resolveRow = card.querySelector(".resolve-row");
+    const ledger = card.querySelector(".ledger");
+    const inviteRead = card.querySelector(".invite-read");
+    const terms = card.querySelector(".terms");
 
     card.querySelector("h3").textContent = market.question;
     card.querySelector(".cutoff").textContent = formatDate(market.cutoff);
     card.querySelector(".deadline").textContent = formatDate(market.deadline);
-    card.querySelector(".terms").textContent = market.terms;
+    terms.textContent = market.terms;
     renderInviteRead(card, market);
     card.querySelector(".yes-pool").textContent = money.format(pools.yes);
     card.querySelector(".no-pool").textContent = money.format(pools.no);
@@ -556,6 +560,12 @@ function renderMarkets() {
     });
 
     if (!isDetailPage) {
+      entryForm.hidden = true;
+      resolveRow.hidden = true;
+      ledger.hidden = true;
+      inviteRead.hidden = true;
+      terms.hidden = true;
+
       const detailLink = document.createElement("a");
       detailLink.className = "primary-button action-link compact-button detail-link";
       detailLink.href = `detail.html?id=${market.id}`;
@@ -579,7 +589,7 @@ function renderMarkets() {
     sideSelect.addEventListener("change", updateQuote);
     amountInput.addEventListener("input", updateQuote);
 
-    entryForm.hidden = market.status !== "OPEN";
+    if (isDetailPage) entryForm.hidden = market.status !== "OPEN";
     entryForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const amount = Number(amountInput.value);

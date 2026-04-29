@@ -44,6 +44,10 @@ button {
   padding: 28px 0 40px;
 }
 
+.detail-page-shell {
+  width: min(980px, calc(100% - 32px));
+}
+
 .topbar {
   display: flex;
   align-items: flex-end;
@@ -85,6 +89,10 @@ h1 {
   font-size: clamp(2rem, 5vw, 4.4rem);
   line-height: 0.95;
   letter-spacing: 0;
+}
+
+.detail-page-shell h1 {
+  font-size: clamp(2.2rem, 5vw, 4rem);
 }
 
 .connection-status {
@@ -215,6 +223,11 @@ textarea {
 .create-view {
   display: grid;
   gap: 18px;
+}
+
+.detail-workspace {
+  max-width: 860px;
+  margin: 0 auto;
 }
 
 .panel {
@@ -370,8 +383,22 @@ textarea {
   gap: 14px;
 }
 
+.detail-market-list {
+  gap: 0;
+}
+
 .market-card {
   padding: 18px;
+}
+
+.market-card-summary .entry-form,
+.market-card-summary .resolve-row,
+.market-card-summary .ledger {
+  display: none;
+}
+
+.market-card-summary .terms {
+  margin-bottom: 12px;
 }
 
 .card-topline,
@@ -382,10 +409,15 @@ textarea {
   gap: 12px;
 }
 
+.card-topline {
+  flex-wrap: wrap;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-right: auto;
 }
 
 .status-pill,
@@ -425,6 +457,10 @@ textarea {
   background: var(--blue-soft);
   border-color: #b8c9f5;
   color: var(--blue);
+}
+
+.detail-link {
+  min-width: 104px;
 }
 
 .meta-grid {
@@ -623,6 +659,10 @@ dd {
   .resolve-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .pill-row {
+    margin-right: 0;
   }
 
   .resolve-actions {

@@ -70,6 +70,14 @@ button {
   text-transform: uppercase;
 }
 
+.brand-link,
+.brand-link:hover,
+.brand-link:focus,
+.brand-link:visited {
+  display: inline-flex;
+  text-decoration: none;
+}
+
 .topbar > div:first-child > .eyebrow {
   margin-bottom: 10px;
   font-size: 1.05rem;

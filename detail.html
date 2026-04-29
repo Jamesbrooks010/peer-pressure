@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bet Detail | Peer Pressure</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell detail-page-shell">
+      <section class="topbar" aria-label="Bet detail header">
+        <div>
+          <p class="eyebrow">Peer Pressure</p>
+          <h1>Bet detail.</h1>
+          <p id="connectionStatus" class="connection-status">Loading bet...</p>
+        </div>
+        <div class="top-actions">
+          <div class="identity-card account-card">
+            <span>Account</span>
+            <strong id="accountName">Guest</strong>
+            <button id="signOutButton" class="tiny-button" type="button" hidden>Sign out</button>
+          </div>
+          <a id="authAction" class="ghost-button action-link" href="auth.html">Sign In</a>
+          <a class="ghost-button action-link" href="index.html">Back</a>
+        </div>
+      </section>
+
+      <section id="marketView" class="workspace detail-workspace">
+        <div id="marketList" class="market-list detail-market-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <template id="marketCardTemplate">
+      <article class="market-card">
+        <div class="card-topline">
+          <div class="pill-row">
+            <span class="status-pill"></span>
+            <span class="visibility-pill"></span>
+          </div>
+          <button class="ghost-button follow-button" type="button"></button>
+        </div>
+
+        <h3></h3>
+
+        <dl class="meta-grid">
+          <div>
+            <dt>Cutoff</dt>
+            <dd class="cutoff"></dd>
+          </div>
+          <div>
+            <dt>Deadline</dt>
+            <dd class="deadline"></dd>
+          </div>
+        </dl>
+
+        <p class="terms"></p>
+        <p class="invite-read"></p>
+
+        <div class="odds-row">
+          <div class="side-box yes-box">
+            <span>YES</span>
+            <strong class="yes-pool"></strong>
+            <small class="yes-odds"></small>
+          </div>
+          <div class="side-box no-box">
+            <span>NO</span>
+            <strong class="no-pool"></strong>
+            <small class="no-odds"></small>
+          </div>
+        </div>
+
+        <form class="entry-form">
+          <select class="side-select" required>
+            <option value="YES">YES</option>
+            <option value="NO">NO</option>
+          </select>
+          <input class="amount-input" type="number" min="1" step="1" placeholder="$" required>
+          <div class="quote-read" aria-live="polite">Enter an amount to see payout</div>
+          <button class="secondary-button" type="submit">Join</button>
+        </form>
+
+        <div class="resolve-row">
+          <span class="payout-read"></span>
+          <div class="resolve-actions">
+            <button class="tiny-button" data-outcome="YES" type="button">YES wins</button>
+            <button class="tiny-button" data-outcome="NO" type="button">NO wins</button>
+            <button class="tiny-button" data-outcome="VOID" type="button">Void</button>
+          </div>
+        </div>
+
+        <details class="ledger" open>
+          <summary>Entries and payouts</summary>
+          <div class="ledger-body"></div>
+        </details>
+      </article>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="account.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
